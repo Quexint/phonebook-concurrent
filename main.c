@@ -36,8 +36,9 @@ struct info_t {
     double cpu_time1, cpu_time2;
     entry *pHead;
     entry *entry_pool;
+    detail *detail_pool;
     pthread_t *tid;
-    append_a **app;
+    thread_info_t **thread_info;
     char *map;
     off_t fs;
 };
@@ -48,7 +49,6 @@ void search(struct info_t *var);
 void output_execution_time(struct info_t *var);
 void output_verified_files(struct info_t *var);
 void cleanup(struct info_t *var);
-void recursize_free(entry *pHead);
 
 int main(int argc, char *argv[])
 {
@@ -125,34 +125,36 @@ void input(struct info_t *var)
     /* allocate at beginning */
     var->entry_pool = (entry *) malloc(sizeof(entry) *
                                        (var->fs) / MAX_LAST_NAME_SIZE);
+    var->detail_pool = (detail*) malloc(sizeof(detail) *
+                                        (var->fs) / MAX_LAST_NAME_SIZE);
 
     assert(var->entry_pool && "entry_pool error");
 
     pthread_setconcurrency(THREAD_NUM + 1);
 
     var->tid = (pthread_t *) malloc(sizeof(pthread_t) * THREAD_NUM);
-    var->app = (append_a **) malloc(sizeof(append_a *) * THREAD_NUM);
+    var->thread_info = (thread_info_t **) malloc(sizeof(thread_info_t*) * THREAD_NUM);
     for (int i = 0; i < THREAD_NUM; i++)
-        var->app[i] = new_append_a(var->map + MAX_LAST_NAME_SIZE * i, var->map + var->fs, i,
-                                   THREAD_NUM, var->entry_pool + i);
+        var->thread_info[i] = new_thread_info(var->map + MAX_LAST_NAME_SIZE * i, var->map + var->fs, i,
+                                              THREAD_NUM, var->entry_pool + i, var->detail_pool + i);
 
     clock_gettime(CLOCK_REALTIME, &mid);
     for (int i = 0; i < THREAD_NUM; i++)
-        pthread_create( &(var->tid[i]), NULL, (void *) &append, (void *) var->app[i]);
+        pthread_create( &(var->tid[i]), NULL, (void *) &append, (void *) var->thread_info[i]);
 
     for (int i = 0; i < THREAD_NUM; i++)
         pthread_join(var->tid[i], NULL);
 
-    var->pHead = var->app[0]->pHead;
-    entry *etmp = var->app[0]->pLast;
+    var->pHead = var->thread_info[0]->pHead;
+    entry *etmp = var->thread_info[0]->pLast;
     for (int i = 0; i < THREAD_NUM; i++) {
-        if (i != 0) etmp->pNext = var->app[i]->pHead;
+        if (i != 0) etmp->pNext = var->thread_info[i]->pHead;
         dprintf("Connect %d head string %s %p\n", i,
-                var->app[i]->lastName, var->app[i]->ptr);
+                var->thread_info[i]->lastName, var->thread_info[i]->ptr);
 
-        etmp = var->app[i]->pLast;
+        etmp = var->thread_info[i]->pLast;
         dprintf("Connect %d tail string %s %p\n", i,
-                var->app[i]->pLast->lastName, var->app[i]->ptr);
+                var->thread_info[i]->pLast->lastName, var->thread_info[i]->ptr);
         dprintf("round %d\n", i);
     }
     etmp->pNext = NULL;
@@ -236,7 +238,7 @@ void cleanup(struct info_t *var)
 #else
     free(var->entry_pool);
     free(var->tid);
-    free(var->app);
+    free(var->thread_info);
     munmap(var->map, var->fs);
 #endif
 }
