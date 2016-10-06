@@ -138,8 +138,6 @@ int main(int argc, char *argv[])
     fclose(fp);
 #endif
 
-    e = pHead;
-
     /* the givn last name to find */
     char input[MAX_LAST_NAME_SIZE] = "zyxel";
     e = pHead;
@@ -168,6 +166,12 @@ int main(int argc, char *argv[])
 
     printf("execution time of append() : %lf sec\n", cpu_time1);
     printf("execution time of findName() : %lf sec\n", cpu_time2);
+
+    int cnt;
+    entry *itr;
+    for(cnt = 0, itr = pHead; itr != NULL; cnt++, itr = itr->pNext)
+        printf("%s\n", itr->lastName);
+    printf("I have %d entries.\n", cnt);
 
 #ifndef OPT
     if (pHead->pNext) free(pHead->pNext);
