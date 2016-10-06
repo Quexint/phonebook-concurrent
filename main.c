@@ -167,11 +167,23 @@ int main(int argc, char *argv[])
     printf("execution time of append() : %lf sec\n", cpu_time1);
     printf("execution time of findName() : %lf sec\n", cpu_time2);
 
+
+    FILE *veri_fp;
+#if defined(OPT)
+    veri_fp = fopen("veri_opt.txt", "a");
+#else
+    veri_fp = fopen("veri_orig.txt", "a");
+#endif
+
     int cnt;
     entry *itr;
-    for(cnt = 0, itr = pHead; itr != NULL; cnt++, itr = itr->pNext)
-        printf("%s\n", itr->lastName);
-    printf("I have %d entries.\n", cnt);
+    for(cnt = 0, itr = pHead; itr != NULL; cnt++, itr = itr->pNext) {
+        fprintf(veri_fp, "%s", itr->lastName);
+#ifndef OPT
+        fprintf(veri_fp, "\n");
+#endif
+    }
+    fprintf(veri_fp, "I have %d entries.\n", cnt);
 
 #ifndef OPT
     if (pHead->pNext) free(pHead->pNext);

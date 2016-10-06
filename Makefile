@@ -29,6 +29,13 @@ phonebook_opt: $(SRCS_common) phonebook_opt.c phonebook_opt.h
 		-DIMPL="\"$@.h\"" -o $@ \
 		$(SRCS_common) $@.c
 
+verified: $(EXEC)
+	./phonebook_opt
+	./phonebook_orig
+	sort veri_opt.txt > sort_veri_opt.txt
+	sort veri_orig.txt > sort_veri_orig.txt
+	diff -q sort_veri_orig.txt sort_veri_opt.txt
+
 run: $(EXEC)
 	echo 3 | sudo tee /proc/sys/vm/drop_caches
 	watch -d -t "./phonebook_orig && echo 3 | sudo tee /proc/sys/vm/drop_caches"
@@ -53,4 +60,5 @@ calculate: calculate.c
 .PHONY: clean
 clean:
 	$(RM) $(EXEC) *.o perf.* \
-	      	calculate orig.txt opt.txt output.txt runtime.png file_align align.txt
+	      	calculate orig.txt opt.txt output.txt runtime.png file_align align.txt\
+	      	veri_opt.txt veri_orig.txt sort_veri_opt.txt sort_veri_orig.txt
