@@ -8,10 +8,11 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <sys/mman.h>
+#include <omp.h>
 
 #include IMPL
 
-#define DICT_FILE "./dictionary/words.txt"
+#define DICT_FILE "./dictionary/words_shuffle.txt"
 
 static double diff_in_second(struct timespec t1, struct timespec t2)
 {
@@ -28,11 +29,14 @@ static double diff_in_second(struct timespec t1, struct timespec t2)
 
 #ifndef OPT
 struct info_t {
+    int num_words;
     double cpu_time1, cpu_time2;
     entry *pHead;
+    char **test_lastname;
 };
 #else
 struct info_t {
+    int num_words;
     double cpu_time1, cpu_time2;
     entry *pHead;
     entry *entry_pool;
@@ -41,10 +45,12 @@ struct info_t {
     thread_info_t **thread_info;
     char *map;
     off_t fs;
+    char **test_lastname;
 };
 #endif
 
 void input(struct info_t *var);
+void make_test_array(struct info_t *var);
 void search(struct info_t *var);
 void output_execution_time(struct info_t *var);
 void output_verified_files(struct info_t *var);
@@ -62,6 +68,7 @@ int main(int argc, char *argv[])
            "Did you implement findName() in " IMPL "?");
     assert(0 == strcmp(findName(input, var.pHead)->lastName, "zyxel"));
 
+    make_test_array(&var);
     search(&var);
     output_execution_time(&var);
     output_verified_files(&var);
@@ -72,6 +79,8 @@ int main(int argc, char *argv[])
 void input(struct info_t *var)
 {
     struct timespec start, end;
+
+    var->num_words = 0;
 
     /* Allocate the variables. */
 #ifndef OPT
@@ -123,10 +132,9 @@ void input(struct info_t *var)
     assert(var->map && "mmap error");
 
     /* allocate at beginning */
-    var->entry_pool = (entry *) malloc(sizeof(entry) *
-                                       (var->fs) / MAX_LAST_NAME_SIZE);
-    var->detail_pool = (detail*) malloc(sizeof(detail) *
-                                        (var->fs) / MAX_LAST_NAME_SIZE);
+    var->num_words = (var->fs) / MAX_LAST_NAME_SIZE;
+    var->entry_pool = (entry *) malloc(sizeof(entry) * (var->num_words));
+    var->detail_pool = (detail*) malloc(sizeof(detail) * (var->num_words));
 
     assert(var->entry_pool && "entry_pool error");
 
@@ -169,6 +177,7 @@ void input(struct info_t *var)
         line[i - 1] = '\0';
         i = 0;
         e = append(line, e);
+        var->num_words++;
     }
     /* Because the head of the list is empty. */
     e = var->pHead;
@@ -181,16 +190,47 @@ void input(struct info_t *var)
 #endif
 }
 
+#ifndef NUM_TEST
+#define NUM_TEST 100
+#endif
+
+void make_test_array(struct info_t *var)
+{
+    char line[MAX_LAST_NAME_SIZE + 5];
+    int cnt = 0;
+    int i;
+
+    srand(time(0));
+
+    var->test_lastname = (char**) malloc(sizeof(char*) * (var->num_words));
+    FILE *fp = fopen(DICT_FILE, "r");
+    while (fgets(line, sizeof(line), fp)) {
+        line[strlen(line) - 1] = '\0';
+        var->test_lastname[cnt] = strdup(line);
+        cnt++;
+    }
+    for(i = 0; i < (var->num_words); i++) {
+        int a = rand() % (var->num_words);
+        int b = rand() % (var->num_words);
+        char *tem = var->test_lastname[a];
+        var->test_lastname[a] = var->test_lastname[b];
+        var->test_lastname[b] = tem;
+    }
+    fclose(fp);
+}
+
 void search(struct info_t *var)
 {
-    char input[MAX_LAST_NAME_SIZE] = "zyxel";
+    int i;
     struct timespec start, end;
 #if defined(__GNUC__)
     __builtin___clear_cache((char *) var->pHead, (char *) (var->pHead) + sizeof(entry));
 #endif
     /* compute the execution time */
     clock_gettime(CLOCK_REALTIME, &start);
-    findName(input, var->pHead);
+    #pragma omp parallel for num_threads(THREAD_NUM)
+    for(i = 0; i < NUM_TEST; i++)
+        findName(var->test_lastname[i], var->pHead);
     clock_gettime(CLOCK_REALTIME, &end);
     var->cpu_time2 = diff_in_second(start, end);
 }
