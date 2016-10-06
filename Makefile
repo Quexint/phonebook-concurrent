@@ -34,7 +34,7 @@ verified: $(EXEC)
 	./phonebook_orig
 	sort veri_opt.txt > sort_veri_opt.txt
 	sort veri_orig.txt > sort_veri_orig.txt
-	diff -q sort_veri_orig.txt sort_veri_opt.txt
+	diff -q sort_veri_orig.txt sort_veri_opt.txt && echo "Success"
 
 run: $(EXEC)
 	echo 3 | sudo tee /proc/sys/vm/drop_caches

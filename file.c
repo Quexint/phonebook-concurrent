@@ -23,7 +23,7 @@ void file_align(char *org, char *mod, int pad)
         memset(wbuf, '\0', pad);
 
         if ((suffix = (pad - strlen(rbuf))) != 0)
-            strcpy(wbuf, rbuf);
+            strncpy(wbuf, rbuf, strlen(rbuf)-1);
 
         fwrite(wbuf, pad, 1, fd1);
     }
